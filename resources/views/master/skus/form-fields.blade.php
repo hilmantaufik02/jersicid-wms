@@ -1,47 +1,43 @@
 <aside 
-    class="sidebar-transition bg-gradient-to-b from-slate-800 to-slate-900 border-r border-slate-700/50 flex flex-col relative flex-shrink-0 z-20"
-    :class="sidebarOpen ? 'w-64' : 'w-20'"
+    class="sidebar-transition bg-slate-800 border-r border-slate-700 flex flex-col relative flex-shrink-0 z-20"
+    :class="sidebarOpen ? 'w-64' : 'w-[72px]'"
 >
-    <!-- Logo Section -->
-    <div class="h-16 flex items-center border-b border-slate-700/50 px-4 relative overflow-hidden">
-        <!-- Animated Background -->
-        <div class="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-cyan-500/5 animate-pulse-glow"></div>
+    <!-- Logo Section dengan Toggle Button Floating di Kanan -->
+    <div class="h-16 flex items-center justify-between border-b border-slate-700 px-4 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent animate-pulse-glow"></div>
         
         <div class="relative z-10 flex items-center gap-3 w-full">
-            <!-- Logo Icon -->
-            <div class="w-10 h-10 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20 flex-shrink-0 transform hover:scale-105 transition-transform">
-                <svg class="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-9 h-9 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-lg flex items-center justify-center shadow-lg glow-cyan flex-shrink-0">
+                <svg class="w-5 h-5 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                 </svg>
             </div>
-            
-            <!-- Logo Text -->
-            <h2 x-show="sidebarOpen" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-2" x-transition:enter-end="opacity-100 translate-x-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="text-xl font-bold text-cyan-400 tracking-wider whitespace-nowrap">
+            <h2 x-show="sidebarOpen" x-transition class="text-lg font-bold text-cyan-400 tracking-wider whitespace-nowrap">
                 JERSIC<span class="text-white">.WMS</span>
             </h2>
         </div>
+        
+        <!-- Toggle Button - Floating di Pojok Kanan -->
+        <button 
+            @click="sidebarOpen = !sidebarOpen"
+            class="absolute -right-3 top-1/2 -translate-y-1/2 z-50 w-6 h-6 bg-slate-700 hover:bg-cyan-500 text-slate-300 hover:text-slate-900 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110"
+            :title="sidebarOpen ? 'Tutup Sidebar' : 'Buka Sidebar'"
+        >
+            <svg class="w-3.5 h-3.5 transition-transform duration-300" 
+                 :class="sidebarOpen ? 'rotate-0' : 'rotate-180'" 
+                 fill="none" 
+                 stroke="currentColor" 
+                 viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path>
+            </svg>
+        </button>
     </div>
 
-    <!-- Toggle Button - Floating di Kanan Border -->
-    <button 
-        @click="sidebarOpen = !sidebarOpen"
-        class="absolute -right-3 top-7 z-50 w-6 h-6 bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-slate-900 rounded-full flex items-center justify-center shadow-lg shadow-cyan-500/30 transition-all duration-300 hover:scale-110 group"
-        :title="sidebarOpen ? 'Tutup Sidebar' : 'Buka Sidebar'"
-    >
-        <svg class="w-3.5 h-3.5 transition-transform duration-300 group-hover:scale-110" 
-             :class="sidebarOpen ? 'rotate-0' : 'rotate-180'" 
-             fill="none" 
-             stroke="currentColor" 
-             viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path>
-        </svg>
-    </button>
-
     <!-- Workspace Indicator -->
-    <div class="px-4 py-3 border-b border-slate-700/50" x-show="sidebarOpen" x-transition>
-        <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Workspace Aktif</p>
+    <div class="px-4 py-3 border-b border-slate-700" x-show="sidebarOpen" x-transition>
+        <p class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Workspace Aktif</p>
         <p class="text-xs font-semibold text-cyan-400 flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-lg shadow-cyan-400/50"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
             {{ Auth::user()->workspace_default->value }}
         </p>
     </div>
@@ -87,9 +83,9 @@
     </nav>
 
     <!-- User Profile Bottom -->
-    <div class="p-3 border-t border-slate-700/50">
+    <div class="p-3 border-t border-slate-700">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-slate-900 font-bold shadow-lg shadow-cyan-500/20 flex-shrink-0">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-slate-900 font-bold shadow-lg glow-cyan flex-shrink-0">
                 {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
             </div>
             <div x-show="sidebarOpen" x-transition class="flex-1 min-w-0">

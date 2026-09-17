@@ -47,11 +47,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard/owner', [DashboardController::class, 'owner'])
             ->name('dashboard.owner');
 
-        // Master Data Routes
+        // Master Data Routes dengan CRUD dan Bulk Actions
         Route::prefix('master-data')->group(function () {
             Route::get('/', [MasterSkuController::class, 'index'])->name('master-data.index');
             Route::post('/import', [MasterSkuController::class, 'import'])->name('master-data.import');
             Route::get('/export', [MasterSkuController::class, 'export'])->name('master-data.export');
+            
+            // Get Product Variants
+            Route::get('/variants/{productName}', [MasterSkuController::class, 'getProductVariants'])
+                ->name('master-data.variants');
+            
+            // Bulk Actions
+            Route::post('/bulk-delete', [MasterSkuController::class, 'bulkDelete'])->name('master-data.bulk-delete');
+            Route::post('/bulk-update-status', [MasterSkuController::class, 'bulkUpdateStatus'])->name('master-data.bulk-status');
+            Route::post('/bulk-update-price', [MasterSkuController::class, 'bulkUpdatePrice'])->name('master-data.bulk-price');
+            
+            // Individual CRUD
+            Route::post('/', [MasterSkuController::class, 'store'])->name('master-data.store');
+            Route::get('/{id}/edit', [MasterSkuController::class, 'edit'])->name('master-data.edit');
+            Route::put('/{id}', [MasterSkuController::class, 'update'])->name('master-data.update');
+            Route::delete('/{id}', [MasterSkuController::class, 'destroy'])->name('master-data.destroy');
+            Route::patch('/{id}/toggle-status', [MasterSkuController::class, 'toggleStatus'])->name('master-data.toggle-status');
         });
 
         // Audit Trail

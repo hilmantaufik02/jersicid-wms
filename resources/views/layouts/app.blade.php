@@ -42,7 +42,7 @@
         @include('layouts.partials.sidebar')
 
         <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col overflow-hidden transition-all duration-300" :class="sidebarOpen ? 'ml-0' : 'ml-0'">
+        <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Navbar -->
             @include('layouts.partials.navbar')
 
