@@ -1,0 +1,253 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\MasterSkuController;
+use App\Http\Controllers\Admin\SupplierController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Warehouse\PurchaseOrderController;
+use App\Http\Controllers\Warehouse\InboundController;
+use App\Http\Controllers\Warehouse\OutboundController;
+use App\Http\Controllers\Warehouse\PickingController;
+use App\Http\Controllers\Warehouse\PackingController;
+use App\Http\Controllers\Warehouse\TransferController;
+use App\Http\Controllers\Warehouse\StockOpnameController;
+use App\Http\Controllers\Warehouse\WarehouseMappingController;
+use App\Http\Controllers\Warehouse\BarcodeScannerController;
+use App\Http\Controllers\Warehouse\PrinterController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
+
+// ==================== AUTH ====================
+Route::get('/', function () {
+    return redirect()->route('login');
+});
+
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+
+Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
+Route::post('/register', [RegisterController::class, 'register']);
+
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+// ==================== DASHBOARD ====================
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard/owner', [DashboardController::class, 'owner'])->name('dashboard.owner');
+    Route::get('/dashboard/gudang', [DashboardController::class, 'gudang'])->name('dashboard.gudang');
+});
+
+// ==================== NOTIFICATIONS ====================
+Route::middleware(['auth'])->get('/api/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+
+// ==================== MASTER SKU (OWNER & SUPERVISOR) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR'])
+    ->prefix('master-skus')
+    ->name('master-skus.')
+    ->group(function () {
+        Route::get('/', [MasterSkuController::class, 'index'])->name('index');
+        Route::get('/create', [MasterSkuController::class, 'create'])->name('create');
+        Route::post('/', [MasterSkuController::class, 'store'])->name('store');
+        Route::get('/{id}/edit', [MasterSkuController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [MasterSkuController::class, 'update'])->name('update');
+        Route::delete('/{id}', [MasterSkuController::class, 'destroy'])->name('destroy');
+        Route::get('/article/{productName}/{version}/skus', [MasterSkuController::class, 'getArticleSkus'])->name('master-skus.article-skus');
+        Route::get('/export', [MasterSkuController::class, 'export'])->name('export');
+        Route::post('/import', [MasterSkuController::class, 'import'])->name('import');
+        Route::post('/reset', [MasterSkuController::class, 'resetData'])->name('reset');
+    });
+
+// ==================== SUPPLIER (OWNER & SUPERVISOR) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR'])->prefix('suppliers')->group(function () {
+    Route::get('/', [SupplierController::class, 'index'])->name('suppliers.index');
+    Route::get('/create', [SupplierController::class, 'create'])->name('suppliers.create');
+    Route::post('/', [SupplierController::class, 'store'])->name('suppliers.store');
+    Route::get('/{id}/edit', [SupplierController::class, 'edit'])->name('suppliers.edit');
+    Route::put('/{id}', [SupplierController::class, 'update'])->name('suppliers.update');
+    Route::delete('/{id}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
+    Route::patch('/{id}/toggle-status', [SupplierController::class, 'toggleStatus'])->name('suppliers.toggle-status');
+});
+
+// ==================== PURCHASE ORDER (OWNER & SUPERVISOR) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,SUBLIM,KONVEKSI'])
+    ->prefix('po')
+    ->name('po.')
+    ->group(function () {
+        Route::get('/', [PurchaseOrderController::class, 'index'])->name('index');
+        Route::get('/create', [PurchaseOrderController::class, 'create'])->name('create');
+        Route::post('/', [PurchaseOrderController::class, 'store'])->name('store');
+        Route::get('/{id}', [PurchaseOrderController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [PurchaseOrderController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [PurchaseOrderController::class, 'update'])->name('update');
+        Route::patch('/{id}/approve', [PurchaseOrderController::class, 'approve'])->name('approve');
+        Route::patch('/{id}/reject', [PurchaseOrderController::class, 'reject'])->name('reject');
+        Route::delete('/{id}', [PurchaseOrderController::class, 'destroy'])->name('destroy');
+        Route::post('/create-from-low-stock', [PurchaseOrderController::class, 'createFromLowStock'])->name('create-from-low-stock');
+    });
+
+// ==================== INBOUND (GUDANG) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])->prefix('gudang/inbound')->group(function () {
+    Route::get('/', [InboundController::class, 'index'])->name('gudang.inbound');
+    Route::get('/create', [InboundController::class, 'create'])->name('gudang.inbound.create');
+    Route::post('/', [InboundController::class, 'store'])->name('gudang.inbound.store');
+    Route::get('/{id}', [InboundController::class, 'show'])->name('gudang.inbound.show');
+});
+
+// ==================== OUTBOUND (GUDANG) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])->prefix('gudang/outbound')->name('gudang.')->group(function () {
+    Route::get('/', [OutboundController::class, 'index'])->name('outbound');
+    Route::get('/create', [OutboundController::class, 'create'])->name('outbound.create');
+    Route::post('/', [OutboundController::class, 'store'])->name('outbound.store');
+    Route::get('/{id}', [OutboundController::class, 'show'])->name('outbound.show');
+});
+
+// ==================== PICKING (GUDANG) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])
+    ->prefix('gudang/picking')
+    ->name('gudang.')
+    ->group(function () {
+        Route::get('/', [PickingController::class, 'index'])->name('picking');
+        Route::get('/create', [PickingController::class, 'create'])->name('picking.create');
+        Route::post('/', [PickingController::class, 'store'])->name('picking.store');
+        Route::get('/{id}', [PickingController::class, 'show'])->name('picking.show');
+        Route::post('/{id}/start', [PickingController::class, 'start'])->name('picking.start');
+        Route::post('/{sessionId}/items/{itemId}/pick', [PickingController::class, 'pickItem'])->name('picking.pick');
+        Route::delete('/{id}', [PickingController::class, 'destroy'])->name('picking.destroy');
+    });
+
+// ==================== PACKING (GUDANG) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])
+    ->prefix('gudang/packing')
+    ->name('gudang.')
+    ->group(function () {
+        Route::get('/', [PackingController::class, 'index'])->name('packing');
+        Route::get('/create', [PackingController::class, 'create'])->name('packing.create');
+        Route::post('/', [PackingController::class, 'store'])->name('packing.store');
+        Route::get('/{id}', [PackingController::class, 'show'])->name('packing.show');
+        Route::post('/{id}/start', [PackingController::class, 'start'])->name('packing.start');
+        Route::post('/{sessionId}/items/{itemId}/pack', [PackingController::class, 'packItem'])->name('packing.pack');
+        Route::post('/{id}/complete', [PackingController::class, 'complete'])->name('packing.complete');
+        Route::delete('/{id}', [PackingController::class, 'destroy'])->name('packing.destroy');
+    });
+
+// ==================== TRANSFER STOK (GUDANG) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])->prefix('gudang/transfer')->group(function () {
+    Route::get('/', [TransferController::class, 'index'])->name('gudang.transfer');
+    Route::post('/', [TransferController::class, 'store'])->name('gudang.transfer.store');
+});
+
+// ==================== STOCK OPNAME (GUDANG) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])->prefix('gudang/opname')->group(function () {
+    Route::get('/', [StockOpnameController::class, 'index'])->name('gudang.opname');
+    Route::get('/create', [StockOpnameController::class, 'create'])->name('gudang.opname.create');
+    Route::post('/', [StockOpnameController::class, 'store'])->name('gudang.opname.store');
+    Route::get('/{id}', [StockOpnameController::class, 'show'])->name('gudang.opname.show');
+    Route::post('/{id}/start', [StockOpnameController::class, 'start'])->name('gudang.opname.start');
+    Route::post('/{id}/update', [StockOpnameController::class, 'updatePhysicalQty'])->name('gudang.opname.update');
+    Route::post('/{id}/complete', [StockOpnameController::class, 'complete'])->name('gudang.opname.complete');
+    Route::delete('/{id}', [StockOpnameController::class, 'destroy'])->name('gudang.opname.destroy');
+});
+
+// ==================== WAREHOUSE MAPPING (GUDANG) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])
+    ->prefix('gudang/mapping')
+    ->group(function () {
+        Route::get('/', [WarehouseMappingController::class, 'index'])->name('gudang.mapping');
+        Route::get('/{rackCode}', [WarehouseMappingController::class, 'show'])->name('gudang.mapping.show');
+        Route::post('/{rackCode}/assign', [WarehouseMappingController::class, 'assign'])->name('gudang.mapping.assign');
+        Route::delete('/{rackCode}/{sku}', [WarehouseMappingController::class, 'unassign'])->name('gudang.mapping.unassign');
+        Route::get('/{rackCode}/product/{productName}/{version}/skus', [WarehouseMappingController::class, 'getRackProductSkus'])
+            ->name('gudang.mapping.product-skus');
+        Route::get('/{rackCode}/product/{productName}/versions', [WarehouseMappingController::class, 'getRackProductVersions'])
+            ->name('gudang.mapping.product-versions');
+    });
+
+// Barcode Scanner - dengan CRUD
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])
+    ->prefix('gudang/scanner')
+    ->name('gudang.')
+    ->group(function () {
+        Route::get('/', [BarcodeScannerController::class, 'index'])->name('scanner');
+        Route::post('/validate', [BarcodeScannerController::class, 'validate'])->name('scanner.validate');
+        Route::post('/buffer', [BarcodeScannerController::class, 'addToBuffer'])->name('scanner.buffer.add');
+        Route::get('/buffer', [BarcodeScannerController::class, 'getBuffer'])->name('scanner.buffer.get');
+        Route::put('/buffer/{id}', [BarcodeScannerController::class, 'updateBuffer'])->name('scanner.buffer.update');
+        Route::delete('/buffer/{id}', [BarcodeScannerController::class, 'deleteBuffer'])->name('scanner.buffer.delete');
+        Route::post('/buffer/clear', [BarcodeScannerController::class, 'clearBuffer'])->name('scanner.buffer.clear');
+        Route::post('/buffer/confirm', [BarcodeScannerController::class, 'confirmBuffer'])->name('scanner.buffer.confirm');
+        Route::put('/scans/{id}', [BarcodeScannerController::class, 'updateScan'])->name('scanner.scan.update');
+        Route::delete('/scans/{id}', [BarcodeScannerController::class, 'deleteScan'])->name('scanner.scan.delete');
+        Route::get('/recent', [BarcodeScannerController::class, 'recentScans'])->name('scanner.recent');
+        Route::get('/device', [BarcodeScannerController::class, 'checkDevice'])->name('scanner.device');
+    });
+
+// Thermal Printer
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])
+    ->prefix('gudang/printer')
+    ->name('gudang.')
+    ->group(function () {
+        Route::get('/', [PrinterController::class, 'index'])->name('printer');
+        Route::post('/preview-label', [PrinterController::class, 'previewLabel'])->name('printer.preview-label');
+        Route::post('/download-pdf', [PrinterController::class, 'downloadPdf'])->name('printer.download-pdf');
+        Route::post('/print-sku', [PrinterController::class, 'printSkuLabel'])->name('printer.print-sku');
+        Route::post('/preview-zpl', [PrinterController::class, 'previewZpl'])->name('printer.preview');
+        Route::post('/print-shipping', [PrinterController::class, 'printShippingLabel'])->name('printer.print-shipping');
+        Route::post('/save-template', [PrinterController::class, 'saveTemplate'])->name('printer.save-template');
+        Route::put('/template/{id}', [PrinterController::class, 'updateTemplate'])->name('printer.update-template');
+        Route::delete('/template/{id}', [PrinterController::class, 'deleteTemplate'])->name('printer.delete-template');
+        Route::post('/test-connection', [PrinterController::class, 'testConnection'])->name('printer.test');
+    });
+
+// ==================== REPORTS (OWNER & SUPERVISOR) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR'])->prefix('reports')->group(function () {
+    Route::get('/', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/stock', [ReportController::class, 'stock'])->name('reports.stock');
+    Route::get('/movement', [ReportController::class, 'movement'])->name('reports.movement');
+    Route::get('/opname', [ReportController::class, 'opname'])->name('reports.opname');
+    Route::get('/import-sku', function () {
+        return view('reports.import-sku');
+    })->name('reports.import-sku-form');
+    Route::post('/import-sku', [ReportController::class, 'importSku'])->name('reports.import-sku');
+    Route::get('/download-template', [ReportController::class, 'downloadTemplate'])->name('reports.download-template');
+});
+
+// ==================== SETTINGS (OWNER ONLY) ====================
+Route::middleware(['auth', 'role:OWNER'])->prefix('settings')->name('settings.')->group(function () {
+    Route::get('/', [SettingsController::class, 'index'])->name('index');
+    Route::get('/profile', [SettingsController::class, 'profile'])->name('update-profile');
+    Route::put('/profile', [SettingsController::class, 'updateProfile'])->name('profile.update');
+    Route::get('/clear-cache', function () {
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        return back()->with('success', 'Cache berhasil dibersihkan!');
+    })->name('clear-cache');
+});
+
+// Fix: Tambah route toggle-status untuk users
+Route::middleware(['auth', 'role:OWNER'])->prefix('users')->group(function () {
+    Route::get('/', [UserController::class, 'index'])->name('users.index');
+    Route::get('/create', [UserController::class, 'create'])->name('users.create');
+    Route::post('/', [UserController::class, 'store'])->name('users.store');
+    Route::get('/{id}/edit', [UserController::class, 'edit'])->name('users.edit');
+    Route::put('/{id}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/{id}', [UserController::class, 'destroy'])->name('users.destroy');
+    Route::patch('/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+});
+
+// ==================== AUDIT TRAIL (OWNER & SUPERVISOR) ====================
+Route::middleware(['auth', 'role:OWNER,SUPERVISOR'])->get('/audit-trails', function () {
+    $activities = \App\Models\AuditTrail::with('user:id,name')
+        ->orderBy('created_at', 'desc')
+        ->paginate(20);
+    return view('dashboard.audit-trails', compact('activities'));
+})->name('audit-trails.index');
