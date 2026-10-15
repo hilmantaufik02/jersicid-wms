@@ -11,11 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Daftarkan middleware alias
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
-            'workspace' => \App\Http\Middleware\CheckWorkspace::class,
+            'workspace' => \App\Http\Middleware\Checkworkspace::class,
         ]);
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -7,10 +7,31 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'JERSIC.ID WMS') }}</title>
 
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet" />
+    <!-- Preconnect to font domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <!-- Load Google Fonts with display=swap (non-blocking) -->
+    <link rel="preload" as="style"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    </noscript>
+
+    <!-- Bunny.net fonts (non-blocking) -->
+    <link rel="preload" as="style" href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800">
+    <link rel="stylesheet" href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" media="print"
+        onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800">
+    </noscript>
+
+    @vite(['resources/css/app.css'])
+    <!-- Preload critical scripts -->
+    <link rel="modulepreload" href="{{ Vite::asset('resources/js/app.js') }}">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
@@ -101,6 +122,12 @@
         this.currentTime = hours + ':' + minutes + ' WIB';
     }
 }">
+
+    <!-- Skip to main content link for keyboard users -->
+    <a href="#main-content"
+        class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-cyan-500 focus:text-white focus:rounded-lg">
+        Skip to main content
+    </a>
 
     <!-- ==================== LAYOUT CONTAINER (FLEXBOX) ==================== -->
     <div class="flex h-screen overflow-hidden">
@@ -712,7 +739,7 @@
             </header>
 
             <!-- Page Content (Scrollable) -->
-            <main class="flex-1 overflow-y-auto bg-slate-950 p-6">
+            <main id="main-content" class="flex-1 overflow-y-auto bg-slate-950 p-6">
                 @isset($slot)
                     {{ $slot }}
                 @else
