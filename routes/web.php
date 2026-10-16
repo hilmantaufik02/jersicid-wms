@@ -137,6 +137,7 @@ Route::middleware(['auth', 'role:OWNER,SUPERVISOR,STAFF_GUDANG'])
         Route::post('/{sessionId}/items/{itemId}/pack', [PackingController::class, 'packItem'])->name('packing.pack');
         Route::post('/{id}/complete', [PackingController::class, 'complete'])->name('packing.complete');
         Route::delete('/{id}', [PackingController::class, 'destroy'])->name('packing.destroy');
+        Route::patch('/{id}/status', [PurchaseOrderController::class, 'updateStatus'])->name('po.update-status');
     });
 
 // ==================== TRANSFER STOK (GUDANG) ====================

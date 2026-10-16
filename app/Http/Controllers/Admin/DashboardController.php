@@ -6,14 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\MasterSku;
 use App\Models\StockActive;
 use App\Models\StockMovement;
-use App\Models\Supplier;
-use App\Models\PurchaseOrder;
+use App\Models\InboundReceipt;
 use App\Models\Order;
-use App\Models\AuditTrail;
-use App\Models\WarehouseRack;
-use Illuminate\Http\Request;
+use App\Models\PickingSession;
+use App\Models\PackingSession;
+use App\Models\PurchaseOrder;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -138,85 +137,78 @@ class DashboardController extends Controller
 
     public function gudang()
     {
-        // ==================== STATS CARDS ====================
+        $user = auth()->user();
 
-        // Total Stok
+        // ✅ FIX: Hitung total stok unit
         $totalStock = StockActive::sum('qty');
 
-        // Low Stock Count
-        $lowStockCount = MasterSku::select('master_skus.sku', 'master_skus.min_stock')
-            ->join('stock_actives', 'master_skus.sku', '=', 'stock_actives.sku')
-            ->where('master_skus.status', 'AKTIF')
-            ->whereRaw('stock_actives.qty <= master_skus.min_stock')
-            ->selectRaw('SUM(stock_actives.qty) as current_qty')
-            ->groupBy('master_skus.sku', 'master_skus.min_stock')
-            ->havingRaw('SUM(stock_actives.qty) <= master_skus.min_stock')
+        // ✅ FIX: Hitung nilai stok (price × qty)
+        $stockValue = DB::table('stock_actives')
+            ->join('master_skus', 'stock_actives.sku', '=', 'master_skus.sku')
+            ->selectRaw('SUM(master_skus.price * stock_actives.qty) as total_value')
+            ->value('total_value') ?? 0;
+
+        // Low stock alert
+        $lowStock = MasterSku::where('status', 'AKTIF')
+            ->whereRaw('min_stock > 0')
+            ->whereRaw('COALESCE((SELECT SUM(qty) FROM stock_actives WHERE stock_actives.sku = master_skus.sku), 0) <= min_stock')
             ->count();
 
-        // Inbound & Outbound Hari Ini
-        $todayInbound = StockMovement::where('type', 'INBOUND')
-            ->whereDate('created_at', today())
-            ->sum('qty');
+        // Inbound hari ini
+        $inboundToday = InboundReceipt::whereDate('created_at', today())->sum('total_qty') ?? 0;
 
-        $todayOutbound = StockMovement::where('type', 'OUTBOUND')
-            ->whereDate('created_at', today())
-            ->sum('qty');
+        // Outbound hari ini
+        $outboundToday = Order::whereDate('created_at', today())->sum('total_qty') ?? 0;
 
-        // Picking & Packing Stats
-        $pendingPicking = \App\Models\PickingSession::where('status', 'PENDING')->count();
-        $pendingPacking = \App\Models\PackingSession::where('status', 'PENDING')->count();
-        $inProgressPicking = \App\Models\PickingSession::where('status', 'IN_PROGRESS')->count();
-        $inProgressPacking = \App\Models\PackingSession::where('status', 'IN_PROGRESS')->count();
-        $completedToday = \App\Models\PickingSession::where('status', 'COMPLETED')
-            ->whereDate('completed_at', today())->count()
-            + \App\Models\PackingSession::where('status', 'COMPLETED')
-            ->whereDate('completed_at', today())->count();
+        // Picking pending
+        $pickingPending = PickingSession::where('status', 'PENDING')->count();
 
-        // ==================== PANEL DATA ====================
+        // Packing pending
+        $packingPending = PackingSession::where('status', 'PENDING')->count();
 
-        // Pending PO (Purchase Order siap diterima - status APPROVED)
-        $pendingPO = PurchaseOrder::whereIn('status', ['APPROVED', 'SENT'])->count();
+        // In progress
+        $inProgress = PickingSession::where('status', 'IN_PROGRESS')->count()
+            + PackingSession::where('status', 'IN_PROGRESS')->count();
 
-        // Pending Pick (Order yang butuh picking - status CONFIRMED)
-        $pendingPick = \App\Models\Order::where('status', 'CONFIRMED')->count();
+        // Selesai hari ini
+        $completedToday = PickingSession::whereDate('completed_at', today())->count()
+            + PackingSession::whereDate('completed_at', today())->count();
 
-        // Pending Pack (Order yang butuh packing - status PICKING_COMPLETED)
-        $pendingPack = \App\Models\Order::where('status', 'PICKING_COMPLETED')->count();
+        // PO siap diterima
+        $poReady = PurchaseOrder::where('status', 'READY_FOR_PICKUP')->count();
 
-        // Low Stock Items (untuk panel alert)
-        $lowStockItems = MasterSku::select('master_skus.sku', 'master_skus.product_name', 'master_skus.min_stock')
-            ->join('stock_actives', 'master_skus.sku', '=', 'stock_actives.sku')
+        // Order perlu picking
+        $orderNeedPicking = Order::whereIn('status', ['CONFIRMED', 'PENDING'])->count();
+
+        // Peringatan stok menipis (top 5)
+        $lowStockProducts = MasterSku::select('master_skus.*')
+            ->selectRaw('COALESCE((SELECT SUM(qty) FROM stock_actives WHERE stock_actives.sku = master_skus.sku), 0) as current_stock')
             ->where('master_skus.status', 'AKTIF')
-            ->whereRaw('stock_actives.qty <= master_skus.min_stock')
-            ->selectRaw('SUM(stock_actives.qty) as current_qty')
-            ->groupBy('master_skus.sku', 'master_skus.product_name', 'master_skus.min_stock')
-            ->havingRaw('SUM(stock_actives.qty) <= master_skus.min_stock')
-            ->orderBy('current_qty')
+            ->whereRaw('min_stock > 0')
+            ->whereRaw('COALESCE((SELECT SUM(qty) FROM stock_actives WHERE stock_actives.sku = master_skus.sku), 0) <= min_stock')
+            ->orderBy('current_stock')
             ->limit(5)
             ->get();
 
-        // Recent Movements (5 pergerakan terakhir)
-        $recentMovements = StockMovement::with(['masterSku:sku,product_name', 'user:id,name'])
+        // Pergerakan terakhir
+        $recentMovements = StockMovement::with('user:id,name')
             ->orderBy('created_at', 'desc')
-            ->limit(10)
+            ->limit(5)
             ->get();
-
-        // ==================== PASS TO VIEW ====================
 
         return view('dashboard.gudang', compact(
             'totalStock',
-            'lowStockCount',
-            'todayInbound',
-            'todayOutbound',
-            'pendingPicking',
-            'pendingPacking',
-            'inProgressPicking',
-            'inProgressPacking',
+            'stockValue',           // ✅ FIX: Kirim variabel ini
+            'lowStock',
+            'inboundToday',
+            'outboundToday',
+            'pickingPending',
+            'packingPending',
+            'inProgress',
             'completedToday',
-            'pendingPO',
-            'pendingPick',
-            'pendingPack',
-            'lowStockItems',
+            'poReady',
+            'orderNeedPicking',
+            'lowStockProducts',
             'recentMovements'
         ));
     }

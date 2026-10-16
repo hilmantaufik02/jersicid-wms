@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\MasterSku;
-use App\Models\Supplier;
+use App\Models\Vendor;
+use App\Models\SystemSetting;
+use App\Models\User;
+use App\Notifications\POStatusUpdated;
 use App\Models\StockActive;
 use App\Models\StockMovement;
 use Illuminate\Http\Request;
@@ -165,9 +168,9 @@ class PurchaseOrderController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(PurchaseOrder $po)
+    public function show($id)
     {
-        $po->load(['supplier', 'user:id,name', 'items']);
+        $po = PurchaseOrder::with(['vendor', 'items'])->findOrFail($id);
         return view('warehouse.po.show', compact('po'));
     }
 
@@ -470,6 +473,72 @@ class PurchaseOrderController extends Controller
                 'success' => false,
                 'message' => 'Gagal membuat PO: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Update Status PO (Khusus Admin Gudang / Supervisor)
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $user = auth()->user();
+
+        // Validasi Role
+        if (!in_array($user->role, ['ADMIN_GUDANG', 'SUPERVISOR', 'OWNER'])) {
+            abort(403, 'Akses ditolak. Hanya Admin Gudang/Supervisor yang bisa update status.');
+        }
+
+        $validated = $request->validate([
+            'status' => 'required|in:IN_PRODUCTION,READY_FOR_PICKUP,RECEIVED,CANCELLED',
+            'defect_count' => 'nullable|integer|min:0',
+            'defect_notes' => 'nullable|string',
+        ]);
+
+        $po = PurchaseOrder::findOrFail($id);
+        $oldStatus = $po->status;
+        $newStatus = $validated['status'];
+
+        // Cegah status mundur (opsional, tapi bagus untuk logika)
+        $allowedTransitions = [
+            'APPROVED' => ['IN_PRODUCTION', 'CANCELLED'],
+            'IN_PRODUCTION' => ['READY_FOR_PICKUP', 'CANCELLED'],
+            'READY_FOR_PICKUP' => ['RECEIVED'],
+        ];
+
+        if (isset($allowedTransitions[$oldStatus]) && !in_array($newStatus, $allowedTransitions[$oldStatus])) {
+            return back()->withErrors(['status' => "Transisi dari {$oldStatus} ke {$newStatus} tidak diizinkan."]);
+        }
+
+        try {
+            DB::transaction(function () use ($po, $validated, $newStatus) {
+                $updateData = ['status' => $newStatus];
+
+                if ($newStatus === 'READY_FOR_PICKUP') {
+                    $updateData['ready_at'] = now();
+                }
+
+                if (isset($validated['defect_count'])) {
+                    $updateData['defect_count'] = $validated['defect_count'];
+                    $updateData['defect_notes'] = $validated['defect_notes'] ?? null;
+                }
+
+                $po->update($updateData);
+            });
+
+            // ✅ KIRIM NOTIFIKASI REAL-TIME
+            // Cek setting apakah notifikasi aktif
+            if (SystemSetting::get('po_auto_notify', '1') == '1') {
+                // Kirim ke semua Owner dan Supervisor
+                $recipients = User::whereIn('role', ['OWNER', 'SUPERVISOR'])->where('id', '!=', $user->id)->get();
+
+                foreach ($recipients as $recipient) {
+                    $recipient->notify(new POStatusUpdated($po, $oldStatus, $newStatus));
+                }
+            }
+
+            return back()->with('success', "Status PO berhasil diupdate menjadi {$newStatus}. Notifikasi terkirim.");
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Gagal update status: ' . $e->getMessage()]);
         }
     }
 }

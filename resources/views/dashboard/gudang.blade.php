@@ -25,17 +25,19 @@
                 <p class="text-[10px] text-slate-500 mt-0.5">Unit</p>
             </div>
 
-            <!-- Nilai Stok -->
-            <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
-                <div class="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-2">
-                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Card Nilai Stok -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+                <div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center mb-3">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                 </div>
                 <p class="text-xs text-emerald-400 mb-0.5">Nilai Stok</p>
-                <p class="text-xl font-bold text-emerald-400">Rp {{ number_format($stockValue / 1000000, 1) }}M</p>
-                <p class="text-[10px] text-slate-500 mt-0.5">IDR</p>
+                {{-- ✅ FIX: Gunakan null coalescing operator untuk aman --}}
+                <p class="text-xl font-bold text-emerald-400">
+                    Rp {{ number_format(($stockValue ?? 0) / 1000000, 1) }}M
+                </p>
             </div>
 
             <!-- Low Stock -->
